@@ -32,7 +32,7 @@ int check_in_the_list(struct rt_info *task , struct rt_info *head ,int SCHED_LIS
 struct rt_info* sched_dasa(struct list_head *head, int flags)
 {
 	struct rt_info *it,*currTask,*nextTask ,*best_ivd, *best_dead = NULL, *best_dead_old;
-
+	struct timespec currDeadline;
 	best_ivd = local_task(head->next);
 
 	list_for_each_entry(it, head, task_list[LOCAL_LIST]) {
@@ -43,7 +43,9 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 
 		//Initialize dependencies
 		initialize_dep(it);
+	}	
 
+	list_for_each_entry(it, head, task_list[LOCAL_LIST]) {
 		//livd(it, false, flags);
 		//Making "true" for calculating dependencies.
 		livd(it, true, flags);
@@ -75,7 +77,7 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 			} else
 				best_dead = it;
 
-			
+			currDeadline = it->deadline;			
 			currTask = it ;
 			nextTask = it->dep;
 
@@ -85,24 +87,24 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 					
 					//Temporary Deadline
 					
-					if(earlier_deadline(&(nextTask->temp_deadline), &(it->temp_deadline))) {
+					if(earlier_deadline(&(nextTask->temp_deadline), &(currDeadline))) {
 						currTask = nextTask;
-						nextTask = it->dep;
+						nextTask = currTask->dep;
 						continue ;
 					}
 
 					else{
-						list_remove(currTask, SCHED_LIST3);
+						list_remove(nextTask, SCHED_LIST3);
 					}
 
 				}
 
-				it->temp_deadline = earlier_deadline(&(it->temp_deadline), &(nextTask->temp_deadline)) ? it->temp_deadline : nextTask->temp_deadline;
+				nextTask->temp_deadline = earlier_deadline(&(it->temp_deadline), &(nextTask->temp_deadline)) ? it->temp_deadline : nextTask->temp_deadline;
 				if(insert_on_list(nextTask, best_dead, SCHED_LIST3, SORT_KEY_TDEADLINE, 0) == 1)
 					best_dead = nextTask;
 
 				currTask = nextTask;
-				nextTask = it->dep;
+				nextTask = currTask->dep;
 
 			}
 
@@ -112,13 +114,14 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 				//best_dead = best_dead_old;
 			}
 			else{
-				list_remove(nextTask, SCHED_LIST3);
+				//list_remove(nextTask, SCHED_LIST3);
 				best_dead = best_dead_old;
 			}
 
-			it = task_list_entry(it->task_list[SCHED_LIST1].next, SCHED_LIST1);
-
 		}
+		
+		it = task_list_entry(it->task_list[SCHED_LIST1].next, SCHED_LIST1);
+
 	} while(it != best_ivd);
 
 	return best_dead ? best_dead : best_ivd;
