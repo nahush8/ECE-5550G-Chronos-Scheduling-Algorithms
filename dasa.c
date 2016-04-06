@@ -35,6 +35,8 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 	struct timespec currDeadline;
 	best_ivd = local_task(head->next);
 
+	/*Iterate through the entire list to initialize lists and dependencies.*/
+
 	list_for_each_entry(it, head, task_list[LOCAL_LIST]) {
 		if(check_task_failure(it, flags))
 			return it;
@@ -45,9 +47,13 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 		initialize_dep(it);
 	}	
 
+
+	/* Calculate the LVDs for all the tasks with dependecies..*/
+
 	list_for_each_entry(it, head, task_list[LOCAL_LIST]) {
 		//livd(it, false, flags);
-		//Making "true" for calculating dependencies.
+
+		//Making "true" for calculating LVDs with dependency consideration.
 		livd(it, true, flags);
 		list_add_before(best_ivd, it, SCHED_LIST1);
 
@@ -55,13 +61,14 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 			best_ivd = it;
 	}
 
+	// Sort the list according to value densities.
 	quicksort(best_ivd, SCHED_LIST1, SORT_KEY_LVD, 0);
 	it = best_ivd;
 	best_dead = it;
 
 	do {
 
-
+		// Check if the task is not present in the schedule.
 		if(!check_in_the_list(it,best_dead,SCHED_LIST2)){
 
 			//Taking the copy of the main scheduling list into tentative list
@@ -81,11 +88,16 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 			currTask = it ;
 			nextTask = it->dep;
 
+			//Iterate through the dependency list 
+
 			while(nextTask != NULL){
+
+				//Check if the task is already present in the tentative schedule.
 
 				if(check_in_the_list(nextTask,best_dead,SCHED_LIST3)){
 					
-					//Temporary Deadline
+					// Check for the earlier temporary Deadline and continue if lesser than 
+					//the current task deadline.
 					
 					if(earlier_deadline(&(nextTask->temp_deadline), &(currDeadline))) {
 						currTask = nextTask;
@@ -94,10 +106,14 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 					}
 
 					else{
+						
+						//Remove the dependency if not less.
 						list_remove(nextTask, SCHED_LIST3);
 					}
 
 				}
+
+				//Task insertion according to temporary deadline.
 
 				nextTask->temp_deadline = earlier_deadline(&(it->temp_deadline), &(nextTask->temp_deadline)) ? it->temp_deadline : nextTask->temp_deadline;
 				if(insert_on_list(nextTask, best_dead, SCHED_LIST3, SORT_KEY_TDEADLINE, 0) == 1)
@@ -107,6 +123,8 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 				nextTask = currTask->dep;
 
 			}
+
+			// If the schedule is feasible, copy the tentative schedule to the current schedule.
 
 			if(list_is_feasible(best_dead, SCHED_LIST3)) {			
 				copy_list(best_dead, SCHED_LIST3, SCHED_LIST2);
@@ -119,6 +137,8 @@ struct rt_info* sched_dasa(struct list_head *head, int flags)
 			}
 
 		}
+
+		//Iterate over all the tasks.
 		
 		it = task_list_entry(it->task_list[SCHED_LIST1].next, SCHED_LIST1);
 
