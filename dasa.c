@@ -152,7 +152,7 @@ struct rt_sched_local dasa = {
 	.base.id = SCHED_RT_DASA,	
 	.flags = 0,
 	.schedule = sched_dasa,
-	.base.sort_key = SORT_KEY_DEADLINE,
+	.base.sort_key = SORT_KEY_TDEADLINE,
 	.base.list = LIST_HEAD_INIT(dasa.base.list)
 };
 
